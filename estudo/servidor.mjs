@@ -11,9 +11,9 @@
  */
 
 import { createServer } from 'node:http'
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { join, dirname, extname, resolve, relative } from 'node:path'
+import { join, dirname, extname, resolve, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 
@@ -174,14 +174,34 @@ async function obterIndice() {
  * Busca por termos no repositorio e no registro de ideias.
  * @param {string} consulta Texto da pergunta.
  * @param {object} estado Estado atual, para incluir as ideias.
+ * @param {string} [arquivoFoco] Arquivo aberto no leitor, que vem primeiro.
  * @returns {Promise<{trechos: object[], ideias: object[], totalArquivos: number}>}
  */
-async function buscar(consulta, estado) {
+async function buscar(consulta, estado, arquivoFoco = '') {
   const termos = tokenizar(consulta)
 
   if (termos.length === 0) return { trechos: [], ideias: [], totalArquivos: 0 }
 
   const { documentos } = await obterIndice()
+
+  // O arquivo aberto no leitor responde primeiro: a pergunta quase sempre e
+  // sobre o que esta na tela.
+  const trechos = []
+  const normalizadoFoco = arquivoFoco.replace(/\\/g, '/')
+  if (normalizadoFoco) {
+    const documento = documentos.find((d) => d.arquivo === normalizadoFoco)
+    if (documento) {
+      const linhas = documento.texto.split('\n')
+      const normalizadas = documento.normalizado.split('\n')
+      for (let i = 0; i < linhas.length && trechos.length < 8; i += 1) {
+        const alvo = normalizadas[i] ?? ''
+        if (!termos.some((termo) => alvo.includes(termo.texto))) continue
+        const limpo = linhas[i].trim()
+        if (limpo.length < 8) continue
+        trechos.push({ arquivo: documento.arquivo, linha: i + 1, texto: limpo, pontos: 9999, foco: true })
+      }
+    }
+  }
 
   // Uma passada pelos arquivos: descobre quais termos cada um contem e, de
   // quebra, em quantos arquivos cada termo aparece.
@@ -213,8 +233,8 @@ async function buscar(consulta, estado) {
   pontuados.sort((a, b) => b.pontos - a.pontos)
 
   // So entao desce ao nivel da linha, nos arquivos que passaram.
-  const trechos = []
   for (const { documento, encontrados, pontos } of pontuados) {
+    if (documento.arquivo === normalizadoFoco) continue
     const linhas = documento.texto.split('\n')
     const normalizadas = documento.normalizado.split('\n')
     let achados = 0
@@ -250,12 +270,13 @@ async function buscar(consulta, estado) {
 // ---------------------------------------------------------------- chat
 
 const SISTEMA_CHAT = `Voce e um orientador de estudo do codigo do DeepSeek Harness.
-Responda em portugues do Brasil, curto e direto, sem enrolacao e sem jargao desnecessario.
-Baseie a resposta nos trechos do repositorio fornecidos. Cite arquivo e linha quando usar um trecho.
+Quem pergunta nao programa: explique em linguagem natural, sem jargao e sem trecho de codigo,
+dizendo o que a pratica resolve e quando ela vale a pena.
+Baseie a resposta nos trechos do repositorio fornecidos e cite arquivo e linha.
 Se os trechos nao bastarem, diga o que falta em vez de inventar.`
 
 /** Chamada ao modelo, quando ha chave configurada. */
-async function responderComModelo(pergunta, trechos, ideias, historico) {
+async function responderComModelo(pergunta, trechos, ideias, historico, arquivoFoco = '') {
   const chave = process.env.DEEPSEEK_API_KEY
   const base = process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com'
   const modelo = process.env.DEEPSEEK_MODELO ?? 'deepseek-chat'
@@ -265,18 +286,21 @@ async function responderComModelo(pergunta, trechos, ideias, historico) {
     .join('\n')
   const contextoIdeias = ideias.map((i) => `- ${i.titulo}: ${i.corpo}`).join('\n')
 
+  const blocos = []
+  if (arquivoFoco) {
+    blocos.push('Arquivo aberto no leitor do usuario:', arquivoFoco, '')
+  }
+  blocos.push(
+    'Trechos do repositorio:',
+    contextoRepositorio || '(nenhum trecho encontrado)',
+    '',
+    'Ideias ja registradas por mim:',
+    contextoIdeias || '(nenhuma)',
+  )
+
   const mensagens = [
     { role: 'system', content: SISTEMA_CHAT },
-    {
-      role: 'user',
-      content: [
-        'Trechos do repositorio:',
-        contextoRepositorio || '(nenhum trecho encontrado)',
-        '',
-        'Ideias ja registradas por mim:',
-        contextoIdeias || '(nenhuma)',
-      ].join('\n'),
-    },
+    { role: 'user', content: blocos.join('\n') },
     ...historico.slice(-6),
     { role: 'user', content: pergunta },
   ]
@@ -298,13 +322,18 @@ async function responderComModelo(pergunta, trechos, ideias, historico) {
  * Responde uma pergunta do chat.
  * Sem DEEPSEEK_API_KEY, devolve as orientacoes montadas a partir do que ja
  * esta registrado e dos trechos encontrados, sem inventar resposta.
+ *
+ * @param {string} pergunta Texto da pergunta.
+ * @param {object} estado Estado atual.
+ * @param {object[]} [historico] Turnos anteriores da conversa.
+ * @param {string} [arquivoFoco] Arquivo aberto no leitor.
  */
-async function responderChat(pergunta, estado, historico = []) {
-  const { trechos, ideias, totalArquivos } = await buscar(pergunta, estado)
+async function responderChat(pergunta, estado, historico = [], arquivoFoco = '') {
+  const { trechos, ideias, totalArquivos } = await buscar(pergunta, estado, arquivoFoco)
 
   if (process.env.DEEPSEEK_API_KEY) {
     try {
-      const texto = await responderComModelo(pergunta, trechos, ideias, historico)
+      const texto = await responderComModelo(pergunta, trechos, ideias, historico, arquivoFoco)
       return { modo: 'modelo', texto, trechos, ideias }
     } catch (erro) {
       return {
@@ -317,6 +346,7 @@ async function responderChat(pergunta, estado, historico = []) {
   }
 
   const partes = []
+  if (arquivoFoco) partes.push(`Procurando primeiro em ${arquivoFoco}.`, '')
   if (ideias.length > 0) {
     partes.push('Do seu registro:')
     for (const ideia of ideias) partes.push(`• ${ideia.titulo} — ${ideia.corpo}`)
@@ -403,6 +433,86 @@ function montarResumo(sessao, ideias) {
   return `${linhas.join('\n').trimEnd()}\n`
 }
 
+// ---------------------------------------------------------------- arquivos
+
+/** Teto de tamanho para o leitor abrir um arquivo. */
+const LIMITE_LEITURA = 400_000
+
+/** Nomes que ficam de fora do explorador. */
+const IGNORADOS = new Set(['.git', 'node_modules', 'lib', 'coverage', '.cache'])
+
+/** Resolve um caminho relativo ao repositorio, recusando o que sai dele. */
+function resolverNoRepo(relativo) {
+  const alvo = resolve(RAIZ_REPO, relativo || '.')
+  if (alvo !== RAIZ_REPO && !alvo.startsWith(RAIZ_REPO + sep)) {
+    throw new Error('caminho fora do repositorio')
+  }
+  return alvo
+}
+
+/**
+ * Diz, em uma palavra, que tipo de arquivo e este.
+ * Serve para quem nao le codigo saber o que esta olhando.
+ */
+function classificarArquivo(caminho) {
+  const nome = caminho.split('/').pop() ?? ''
+  if (nome === 'AGENTS.md' || nome === 'CLAUDE.md' || nome === 'CONTRIBUTING.md') return 'regras'
+  if (/\.(spec|test|e2e)\./.test(nome) || caminho.includes('/tests/') || caminho.includes('/test/')) return 'teste'
+  if (nome.endsWith('.md')) return 'documentacao'
+  if (/\.(json|ya?ml|toml)$/.test(nome) || nome.startsWith('tsconfig') || nome.startsWith('.oxlint')) return 'configuracao'
+  if (/\.(ts|mjs|js|tsx)$/.test(nome)) return 'codigo'
+  return 'outro'
+}
+
+/** Lista um diretorio do repositorio, pastas primeiro. */
+async function listarDiretorio(relativo) {
+  const alvo = resolverNoRepo(relativo)
+  const itens = await readdir(alvo, { withFileTypes: true })
+
+  const pastas = []
+  const arquivos = []
+  for (const item of itens) {
+    if (IGNORADOS.has(item.name)) continue
+    const caminho = relativo ? `${relativo}/${item.name}` : item.name
+    if (item.isDirectory()) {
+      pastas.push({ nome: item.name, caminho, tipo: 'pasta' })
+    } else {
+      arquivos.push({
+        nome: item.name,
+        caminho,
+        tipo: 'arquivo',
+        classe: classificarArquivo(caminho),
+        extensao: extname(item.name).replace('.', ''),
+      })
+    }
+  }
+
+  const porNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR')
+  pastas.sort(porNome)
+  arquivos.sort(porNome)
+
+  const pai = relativo.includes('/') ? relativo.slice(0, relativo.lastIndexOf('/')) : ''
+  return { caminho: relativo, pai, pastas, arquivos }
+}
+
+/** Le um arquivo de texto do repositorio. */
+async function lerArquivoDoRepo(relativo) {
+  const alvo = resolverNoRepo(relativo)
+  const info = await stat(alvo)
+  if (!info.isFile()) throw new Error('nao e um arquivo')
+  if (info.size > LIMITE_LEITURA) {
+    throw new Error(`arquivo grande demais para o leitor (${Math.round(info.size / 1024)} KB)`)
+  }
+  const conteudo = await readFile(alvo, 'utf8')
+  return {
+    caminho: relativo,
+    classe: classificarArquivo(relativo),
+    tamanho: info.size,
+    linhas: conteudo.split('\n').length,
+    conteudo,
+  }
+}
+
 // ---------------------------------------------------------------- HTTP
 
 async function lerCorpo(req) {
@@ -458,6 +568,32 @@ const servidor = createServer(async (req, res) => {
         modoChat: process.env.DEEPSEEK_API_KEY ? 'modelo' : 'local',
         raizRepo: RAIZ_REPO,
       })
+    }
+
+    // --- explorador de codigo -----------------------------------------
+    if (rota === '/api/arvore' && req.method === 'GET') {
+      return responderJson(res, 200, await listarDiretorio(url.searchParams.get('caminho') ?? ''))
+    }
+
+    if (rota === '/api/arquivo' && req.method === 'GET') {
+      const caminho = url.searchParams.get('caminho') ?? ''
+      if (!caminho) return responderJson(res, 400, { erro: 'caminho obrigatorio' })
+      return responderJson(res, 200, await lerArquivoDoRepo(caminho))
+    }
+
+    if (rota === '/api/procurar' && req.method === 'GET') {
+      const termo = normalizar(url.searchParams.get('q') ?? '')
+      if (termo.length < 2) return responderJson(res, 200, { resultados: [] })
+
+      const { documentos } = await obterIndice()
+      const resultados = documentos
+        .filter((documento) => normalizar(documento.arquivo).includes(termo))
+        .map((documento) => ({ caminho: documento.arquivo, classe: classificarArquivo(documento.arquivo) }))
+        // Caminho curto primeiro: costuma ser o arquivo principal, nao um teste fundo.
+        .sort((a, b) => a.caminho.length - b.caminho.length || a.caminho.localeCompare(b.caminho, 'pt-BR'))
+        .slice(0, 60)
+
+      return responderJson(res, 200, { resultados })
     }
 
     // --- sessoes ------------------------------------------------------
@@ -572,11 +708,11 @@ const servidor = createServer(async (req, res) => {
 
     // --- chat ---------------------------------------------------------
     if (rota === '/api/chat' && req.method === 'POST') {
-      const { pergunta, historico } = await lerCorpo(req)
+      const { pergunta, historico, arquivo } = await lerCorpo(req)
       if (!pergunta?.trim()) return responderJson(res, 400, { erro: 'pergunta obrigatoria' })
 
       const estado = await lerEstado()
-      const resultado = await responderChat(pergunta.trim(), estado, historico ?? [])
+      const resultado = await responderChat(pergunta.trim(), estado, historico ?? [], arquivo ?? '')
 
       const sessao = sessaoAtiva(estado)
       if (sessao) {

@@ -56,6 +56,25 @@
       "projeto": true,
       "origem": "pnpm-workspace.yaml",
       "status": "aberta"
+    },
+    {
+      "id": "b18f8418-090f-4f38-9311-a95c32c08584",
+      "criadaEm": "2026-10-05T14:46:47.610Z",
+      "atualizadaEm": "2026-10-05T15:09:12.071Z",
+      "sessaoId": null,
+      "titulo": "Leitura de rede funciona confinada; escrita autenticada precisa de escalonamento",
+      "corpo": "Dentro do sandbox confinado, git clone e fetch de repositorio publico funcionam (com http.sslBackend=openssl), porque nao pedem credencial. Ja o git push falha: o Git Credential Manager abre um pipe nomeado, que a confinacao bloqueia (\"couldn't create signal pipe, Win32 error 5\" seguido de \"could not read Username\"). Regra pratica: operacao de rede somente-leitura = confinada; operacao de rede que autentica = escalar uma vez com o comando exato, como manda a politica do repo.",
+      "tags": [
+        "git",
+        "sandbox",
+        "windows",
+        "credenciais"
+      ],
+      "area": "ambiente",
+      "importancia": "alta",
+      "projeto": false,
+      "origem": "git push origin master",
+      "status": "aberta"
     }
   ],
   "sessaoAtivaId": null

@@ -26,86 +26,167 @@
       </div>
     </header>
 
-    <main class="grade">
-      <!-- ------------------------------------------------------- chat -->
-      <section class="painel" id="painel-chat">
-        <div class="painel-cabecalho">
-          <h2>Dúvidas e orientações rápidas</h2>
-          <span class="contador" id="contador-perguntas">0 perguntas</span>
+    <div class="corpo">
+      <!-- ------------------------------------------------ navegacao -->
+      <nav class="menu">
+        <button class="menu-item ativo" data-visao="estudar">
+          <span class="menu-icone">◧</span>
+          <span class="menu-texto">Estudar<small>estrutura e arquivos</small></span>
+        </button>
+        <button class="menu-item" data-visao="ideias">
+          <span class="menu-icone">✦</span>
+          <span class="menu-texto">Ideias<small>técnicas e hábitos</small></span>
+        </button>
+        <button class="menu-item" data-visao="sessoes">
+          <span class="menu-icone">◷</span>
+          <span class="menu-texto">Sessões<small>resumos</small></span>
+        </button>
+        <div class="menu-rodape" id="menu-contagem"></div>
+      </nav>
+
+      <!-- --------------------------------------------------- principal -->
+      <main class="principal">
+        <!-- ============================================ visao estudar -->
+        <section class="visao ativa" id="visao-estudar">
+          <div class="explorador">
+            <div class="explorador-topo">
+              <input id="busca-arquivo" placeholder="procurar arquivo ou pasta…" />
+              <div class="atalhos">
+                <button class="atalho" data-ir="AGENTS.md">Regras do projeto</button>
+                <button class="atalho" data-ir="docs">Documentação</button>
+                <button class="atalho" data-ir="packages">Código</button>
+              </div>
+            </div>
+            <div class="migalhas" id="migalhas"></div>
+            <div class="arvore" id="arvore"></div>
+          </div>
+
+          <div class="leitor" id="leitor">
+            <div class="leitor-vazio" id="leitor-vazio">
+              <h2>Escolha um arquivo</h2>
+              <p>
+                À esquerda está a estrutura real do harness. Comece pelas
+                <strong>Regras do projeto</strong> (<code>AGENTS.md</code>): é onde estão
+                as estratégias que os modelos que trabalham neste código precisam seguir.
+              </p>
+              <p>
+                Você não precisa ler código. Selecione qualquer trecho e use os botões que
+                aparecem para perguntar ou registrar uma ideia.
+              </p>
+            </div>
+
+            <div class="leitor-conteudo" id="leitor-conteudo" hidden>
+              <div class="leitor-cabecalho">
+                <div class="leitor-titulo">
+                  <h2 id="leitor-caminho">—</h2>
+                  <div class="leitor-meta" id="leitor-meta"></div>
+                </div>
+                <div class="leitor-acoes">
+                  <button class="botao botao-fantasma" id="btn-renderizado">ver formatado</button>
+                  <button class="botao botao-fantasma" id="btn-perguntar-arquivo">perguntar sobre este arquivo</button>
+                </div>
+              </div>
+              <div class="leitor-corpo" id="leitor-corpo"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================= visao ideias -->
+        <section class="visao" id="visao-ideias">
+          <div class="registro">
+            <form class="form-ideia" id="form-ideia">
+              <h2>Nova ideia</h2>
+              <input id="ideia-titulo" placeholder="Título curto da técnica ou hábito" required />
+              <textarea id="ideia-corpo" rows="4" placeholder="Explique como se fosse pedir a um modelo de IA, em linguagem natural"></textarea>
+              <div class="linha-campos">
+                <input id="ideia-area" placeholder="Área (ex.: testes, git, plugins)" />
+                <input id="ideia-tags" placeholder="tags separadas por vírgula" />
+                <select id="ideia-importancia">
+                  <option value="alta">importância alta</option>
+                  <option value="media" selected>importância média</option>
+                  <option value="baixa">importância baixa</option>
+                </select>
+              </div>
+              <input id="ideia-origem" placeholder="origem (ex.: AGENTS.md:42)" />
+              <div class="linha-acoes">
+                <label class="caixa">
+                  <input type="checkbox" id="ideia-projeto" checked />
+                  vale para meus projetos
+                </label>
+                <button type="submit" class="botao botao-primario">Registrar ideia</button>
+              </div>
+            </form>
+
+            <div class="filtros">
+              <input id="filtro-texto" placeholder="filtrar…" />
+              <select id="filtro-visao">
+                <option value="todas">todas</option>
+                <option value="projeto">só as de projeto</option>
+                <option value="alta">só importância alta</option>
+                <option value="sessao">só desta sessão</option>
+              </select>
+            </div>
+
+            <div class="lista-ideias" id="lista-ideias"></div>
+          </div>
+
+          <aside class="panorama" id="panorama">
+            <h2>Visão geral</h2>
+            <div id="panorama-conteudo"></div>
+          </aside>
+        </section>
+
+        <!-- ============================================ visao sessoes -->
+        <section class="visao" id="visao-sessoes">
+          <div class="sessoes-lista">
+            <h2>Sessões</h2>
+            <div class="lista-sessoes" id="lista-sessoes"></div>
+          </div>
+          <div class="resumo" id="resumo-area">
+            <div class="resumo-cabecalho">
+              <h3 id="resumo-titulo">Escolha uma sessão encerrada</h3>
+              <button class="botao botao-fantasma" id="btn-baixar-resumo">baixar .md</button>
+            </div>
+            <div class="resumo-conteudo" id="resumo-conteudo">
+              <p class="vazio">Os resumos ficam em <code>estudo/dados/sessoes/</code>.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- ---------------------------------------------------- chat -->
+      <aside class="chat" id="chat">
+        <div class="chat-cabecalho">
+          <h2>Dúvidas e orientações</h2>
+          <button class="botao botao-fantasma" id="btn-limpar-chat">limpar</button>
+        </div>
+        <div class="chat-contexto" id="chat-contexto" hidden>
+          <span class="contexto-rotulo">sobre o arquivo aberto</span>
+          <strong id="chat-contexto-nome">—</strong>
+          <button class="contexto-tirar" id="btn-tirar-contexto" title="perguntar sobre o repositório todo">×</button>
         </div>
 
         <div class="chat-historico" id="chat-historico">
           <div class="vazio">
-            Pergunte sobre o código. Sem chave de API eu devolvo trechos do repositório
+            Pergunte em linguagem natural. Sem chave de API eu mostro trechos do repositório
             e o que você já registrou, sem inventar.
           </div>
         </div>
 
         <form class="chat-entrada" id="form-chat">
-          <textarea id="campo-pergunta" rows="2" placeholder="Ex.: como um plugin registra um serviço?"></textarea>
+          <textarea id="campo-pergunta" rows="2" placeholder="Ex.: que regras este projeto exige dos modelos?"></textarea>
           <button type="submit" class="botao botao-primario" id="btn-perguntar">Perguntar</button>
         </form>
-      </section>
+      </aside>
+    </div>
 
-      <!-- ----------------------------------------------------- ideias -->
-      <section class="painel" id="painel-ideias">
-        <div class="painel-cabecalho">
-          <h2>Registro de ideias</h2>
-          <span class="contador" id="contador-ideias">0 ideias</span>
-        </div>
-
-        <form class="form-ideia" id="form-ideia">
-          <input id="ideia-titulo" placeholder="Título curto do hábito ou técnica" required />
-          <textarea id="ideia-corpo" rows="3" placeholder="O que é, e por que vale a pena"></textarea>
-          <div class="linha-campos">
-            <input id="ideia-area" placeholder="Área (ex.: testes, git, plugins)" />
-            <input id="ideia-tags" placeholder="tags separadas por vírgula" />
-            <select id="ideia-importancia">
-              <option value="alta">importância alta</option>
-              <option value="media" selected>importância média</option>
-              <option value="baixa">importância baixa</option>
-            </select>
-          </div>
-          <input id="ideia-origem" placeholder="origem (ex.: docs/architecture.md:42)" />
-          <div class="linha-acoes">
-            <label class="caixa">
-              <input type="checkbox" id="ideia-projeto" checked />
-              vale para meus projetos
-            </label>
-            <button type="submit" class="botao botao-primario">Registrar ideia</button>
-          </div>
-        </form>
-
-        <div class="filtros">
-          <input id="filtro-texto" placeholder="filtrar…" />
-          <select id="filtro-visao">
-            <option value="todas">todas</option>
-            <option value="projeto">só as de projeto</option>
-            <option value="alta">só importância alta</option>
-            <option value="sessao">só desta sessão</option>
-          </select>
-        </div>
-
-        <div class="lista-ideias" id="lista-ideias"></div>
-      </section>
-
-      <!-- ---------------------------------------------------- sessoes -->
-      <section class="painel" id="painel-sessoes">
-        <div class="painel-cabecalho">
-          <h2>Sessões e resumos</h2>
-        </div>
-        <div class="lista-sessoes" id="lista-sessoes"></div>
-        <div class="resumo" id="resumo-area" hidden>
-          <div class="resumo-cabecalho">
-            <h3 id="resumo-titulo">Resumo</h3>
-            <button class="botao botao-fantasma" id="btn-fechar-resumo">fechar</button>
-          </div>
-          <pre id="resumo-conteudo"></pre>
-        </div>
-      </section>
-    </main>
+    <div class="acoes-selecao" id="acoes-selecao" hidden>
+      <button class="botao botao-primario" id="btn-sel-perguntar">Perguntar sobre isto</button>
+      <button class="botao" id="btn-sel-ideia">Registrar ideia</button>
+    </div>
 
     <div class="aviso" id="aviso" hidden></div>
+    <script src="/markdown.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>
