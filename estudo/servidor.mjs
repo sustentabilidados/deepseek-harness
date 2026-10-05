@@ -83,12 +83,21 @@ let indice = null
 /** Nomes que ficam de fora do explorador e do indice. */
 const IGNORADOS = new Set(['.git', 'node_modules', 'lib', 'coverage', '.cache'])
 
+/** Teto de seguranca: nunca varre alem disto, aconteca o que acontecer. */
+const LIMITE_INDICE = 20000
+
 /**
  * Coleta recursivamente os caminhos de arquivo sob um diretorio.
+ *
+ * A unica trava e o teto de arquivos: sem reparse points na arvore nao ha como
+ * recursar sem fim, e o teto segura qualquer caso que apareca no futuro.
+ *
  * @param {string} caminho Diretorio absoluto de partida.
  * @param {string[]} acumulado Lista de caminhos relativos ao repositorio.
  */
 async function coletarArquivos(caminho, acumulado) {
+  if (acumulado.length >= LIMITE_INDICE) return
+
   let itens
   try {
     itens = await readdir(caminho, { withFileTypes: true })
@@ -96,6 +105,7 @@ async function coletarArquivos(caminho, acumulado) {
     return
   }
   for (const item of itens) {
+    if (acumulado.length >= LIMITE_INDICE) return
     if (IGNORADOS.has(item.name)) continue
     const filho = join(caminho, item.name)
     if (item.isDirectory()) {
@@ -440,9 +450,8 @@ const servidor = createServer(async (req, res) => {
 
 servidor.listen(PORTA, HOST, async () => {
   const estado = await lerEstado()
-  const { arquivos } = await obterIndice()
   console.log(`Ambiente de estudo no ar: http://${HOST}:${PORTA}`)
+  console.log(`PID deste servidor: ${process.pid}`)
   console.log(`Repositorio: ${RAIZ_REPO}`)
-  console.log(`Arquivos navegaveis: ${arquivos.length}`)
   console.log(`Ideias registradas: ${estado.ideias.length}`)
 })
