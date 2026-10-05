@@ -22,7 +22,6 @@
           <strong id="sessao-titulo">nenhuma aberta</strong>
         </div>
         <button id="btn-sessao" class="botao botao-primario">Iniciar sessão</button>
-        <span class="selo" id="selo-chat">chat</span>
       </div>
     </header>
 
@@ -70,8 +69,9 @@
                 as estratégias que os modelos que trabalham neste código precisam seguir.
               </p>
               <p>
-                Você não precisa ler código. Selecione qualquer trecho e use os botões que
-                aparecem para perguntar ou registrar uma ideia.
+                Você não precisa ler código. Selecione qualquer trecho e use o botão que
+                aparece para transformá-lo numa ideia do seu registro, já com o arquivo e a
+                linha anotados.
               </p>
             </div>
 
@@ -83,7 +83,6 @@
                 </div>
                 <div class="leitor-acoes">
                   <button class="botao botao-fantasma" id="btn-renderizado">ver formatado</button>
-                  <button class="botao botao-fantasma" id="btn-perguntar-arquivo">perguntar sobre este arquivo</button>
                 </div>
               </div>
               <div class="leitor-corpo" id="leitor-corpo"></div>
@@ -153,36 +152,11 @@
           </div>
         </section>
       </main>
-
-      <!-- ---------------------------------------------------- chat -->
-      <aside class="chat" id="chat">
-        <div class="chat-cabecalho">
-          <h2>Dúvidas e orientações</h2>
-          <button class="botao botao-fantasma" id="btn-limpar-chat">limpar</button>
-        </div>
-        <div class="chat-contexto" id="chat-contexto" hidden>
-          <span class="contexto-rotulo">sobre o arquivo aberto</span>
-          <strong id="chat-contexto-nome">—</strong>
-          <button class="contexto-tirar" id="btn-tirar-contexto" title="perguntar sobre o repositório todo">×</button>
-        </div>
-
-        <div class="chat-historico" id="chat-historico">
-          <div class="vazio">
-            Pergunte em linguagem natural. Sem chave de API eu mostro trechos do repositório
-            e o que você já registrou, sem inventar.
-          </div>
-        </div>
-
-        <form class="chat-entrada" id="form-chat">
-          <textarea id="campo-pergunta" rows="2" placeholder="Ex.: que regras este projeto exige dos modelos?"></textarea>
-          <button type="submit" class="botao botao-primario" id="btn-perguntar">Perguntar</button>
-        </form>
-      </aside>
     </div>
 
     <div class="acoes-selecao" id="acoes-selecao" hidden>
-      <button class="botao botao-primario" id="btn-sel-perguntar">Perguntar sobre isto</button>
-      <button class="botao" id="btn-sel-ideia">Registrar ideia</button>
+      <button class="botao botao-primario" id="btn-sel-ideia">Registrar ideia deste trecho</button>
+      <button class="botao" id="btn-sel-copiar">Copiar</button>
     </div>
 
     <div class="aviso" id="aviso" hidden></div>

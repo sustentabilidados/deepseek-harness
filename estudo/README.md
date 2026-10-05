@@ -4,6 +4,10 @@ Espaço de estudo do código do harness, feito para quem **não lê código**. A
 é aprender as estratégias em linguagem natural, registrar as que interessam, e
 depois cobrar dos modelos de IA se eles realmente usaram aquilo.
 
+**Aqui não tem chat.** As dúvidas e as orientações acontecem na conversa com o
+agente de IA. Esta ferramenta faz o outro lado: mostra a estrutura do harness,
+guarda o que você decidiu aproveitar, e fecha a sessão com um resumo.
+
 ## Rodar
 
 ```sh
@@ -24,37 +28,31 @@ node estudo/verificar.mjs
 | Visão | Para quê |
 | --- | --- |
 | **Estudar** | Navega a estrutura real do harness e lê os arquivos. Markdown sai formatado; o resto sai com número de linha. Comece por **Regras do projeto** (`AGENTS.md`) e por **Documentação**. |
-| **Ideias** | O que você quer levar para seus projetos. Cada ideia pode apontar para um arquivo e linha, e a visão geral mostra onde estão concentradas. |
+| **Ideias** | O que você quer levar para seus projetos. Cada ideia pode apontar para um arquivo e linha, e a visão geral mostra onde elas se concentram. |
 | **Sessões** | Cada sessão encerrada vira um resumo em markdown, com as ideias de projeto em destaque. |
-
-Ao lado, sempre visível, o **chat**. Ele responde primeiro sobre o arquivo aberto
-— o nome do arquivo aparece numa faixa acima da conversa, e você pode tirá-lo para
-perguntar sobre o repositório todo.
 
 ## O gesto principal
 
 Selecione qualquer trecho no leitor. Aparecem dois botões:
 
-- **Perguntar sobre isto** — joga o trecho no chat e pede explicação em linguagem natural.
-- **Registrar ideia** — leva o trecho para o formulário, com o arquivo e a linha já preenchidos.
+- **Registrar ideia deste trecho** — leva o texto para o formulário, já com o
+  arquivo e a linha preenchidos.
+- **Copiar** — para levar o trecho para a conversa com o agente e perguntar sobre ele.
 
-É assim que o texto do código vira uma técnica no seu registro.
+É assim que o texto do código vira uma técnica no seu registro. Depois, na lista
+de ideias, a origem é clicável: volta e abre o arquivo na linha exata.
 
-## Chat com modelo
+## O que cada arquivo é
 
-Sem chave, o chat só mostra o que existe no repositório e no registro — não
-responde por conta própria. Para ele explicar de verdade:
+O explorador etiqueta cada arquivo para você saber o que está olhando sem ler nada:
 
-```powershell
-$env:DEEPSEEK_API_KEY = "..."
-node estudo/servidor.mjs
-```
-
-Variáveis opcionais: `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODELO`, `PORTA_ESTUDO`.
-
-Ressalva honesta: a documentação do harness é toda em inglês. Perguntas com
-termos em inglês (`agent-loop`, `capability seam`, `session log`) acertam muito
-mais do que a tradução em português.
+| Etiqueta | Significa |
+| --- | --- |
+| `REGRAS` | As convenções que este projeto exige de quem mexe nele |
+| `DOCUMENTACAO` | Explicação em prosa |
+| `CODIGO` | A implementação |
+| `TESTE` | Verificação automática |
+| `CONFIGURACAO` | Ajustes de ferramenta |
 
 ## Onde ficam os dados
 
@@ -70,7 +68,7 @@ estudo/
   servidor.mjs        servidor HTTP, sem dependências
   verificar.mjs       autoteste (markdown, HTML/JS, API)
   publico/
-    index.html        as três visões e o chat
+    index.html        as três visões
     estilo.css
     markdown.js       formatador de markdown
     app.js            comportamento

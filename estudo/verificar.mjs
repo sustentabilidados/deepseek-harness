@@ -87,7 +87,7 @@ async function pegar(caminho) {
 try {
   const estado = await pegar('/api/estado')
   conferir('estado responde', Array.isArray(estado.ideias))
-  conferir('estado traz o modo do chat', typeof estado.modoChat === 'string')
+  conferir('estado nao expoe mais o chat', estado.modoChat === undefined)
 
   const raiz = await pegar('/api/arvore')
   conferir('arvore lista pastas', raiz.pastas.length > 0)
@@ -99,8 +99,8 @@ try {
   const achados = await pegar('/api/procurar?q=sandbox')
   conferir('busca por nome de arquivo acha sandbox', achados.resultados.length > 0)
 
-  const busca = await pegar('/api/buscar?q=sandbox')
-  conferir('busca por conteudo acha trechos', busca.trechos.length > 0)
+  const respostaChat = await fetch(`${ENDERECO}/api/chat`, { method: 'POST' })
+  conferir('a rota de chat nao existe mais', !respostaChat.ok)
 
   let travou = false
   try {
@@ -118,4 +118,7 @@ try {
 // ------------------------------------------------ resultado
 
 console.log(`\n${passes} passaram, ${falhas} falharam`)
-process.exit(falhas === 0 ? 0 : 1)
+
+// Nao usar process.exit(): ele aborta o processo no Windows enquanto o socket
+// do fetch ainda esta fechando, e o codigo de saida sai errado.
+process.exitCode = falhas === 0 ? 0 : 1

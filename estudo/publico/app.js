@@ -1,17 +1,12 @@
 'use strict'
 
 /** Estado carregado do servidor. */
-let estado = { ideias: [], sessoes: [], sessaoAtivaId: null, modoChat: 'local', raizRepo: '' }
-
-/** Historico curto enviado ao chat, para dar contexto a pergunta seguinte. */
-const historicoChat = []
+let estado = { ideias: [], sessoes: [], sessaoAtivaId: null, raizRepo: '' }
 
 /** Arquivo aberto no leitor. */
 let arquivoAberto = null
 /** Pasta listada no explorador. */
 let pastaAtual = ''
-/** Se o chat deve considerar o arquivo aberto. */
-let usarContexto = true
 /** Se o leitor mostra markdown formatado. */
 let modoFormatado = true
 
@@ -62,18 +57,12 @@ async function carregar() {
   estado = await api('/api/estado')
   $('topo-repo').textContent = estado.raizRepo
 
-  const selo = $('selo-chat')
-  selo.textContent = estado.modoChat === 'modelo' ? 'chat com modelo' : 'chat modo local'
-  selo.className = estado.modoChat === 'modelo' ? 'selo modelo' : 'selo'
-
   renderSessao()
   renderIdeias()
   renderPanorama()
   renderSessoes()
 
   $('menu-contagem').innerHTML = `${estado.ideias.length} ideia${estado.ideias.length === 1 ? '' : 's'}<br />${estado.sessoes.length} sessão${estado.sessoes.length === 1 ? '' : 'ões'}`
-
-  atualizarContextoChat()
 }
 
 // ---------------------------------------------------------- sessao
@@ -210,7 +199,6 @@ async function abrirArquivo(caminho, linha = 0) {
     modoFormatado = dados.classe === 'documentacao' || dados.classe === 'regras'
     mostrarVisao('estudar')
     renderLeitor(linha)
-    atualizarContextoChat(caminho)
     if (linha) avisar(`Aberto em ${caminho}:${linha}`)
   } catch (erro) {
     avisar(erro.message, true)
@@ -264,11 +252,6 @@ $('btn-renderizado').addEventListener('click', () => {
   renderLeitor()
 })
 
-$('btn-perguntar-arquivo').addEventListener('click', () => {
-  $('campo-pergunta').value = `O que este arquivo faz e o que eu deveria aprender com ele?\n`
-  $('campo-pergunta').focus()
-})
-
 // ---------------------------------------------------- selecao
 
 let selecaoAtual = null
@@ -297,12 +280,11 @@ document.addEventListener('mouseup', (evento) => {
   barra.hidden = false
 })
 
-$('btn-sel-perguntar').addEventListener('click', () => {
+$('btn-sel-copiar').addEventListener('click', async () => {
   if (!selecaoAtual) return
-  const trecho = selecaoAtual.texto.length > 600 ? `${selecaoAtual.texto.slice(0, 600)}…` : selecaoAtual.texto
-  $('campo-pergunta').value = `Explica em linguagem natural o que isto significa e quando eu deveria pedir isso a um modelo:\n\n"${trecho}"\n`
+  await navigator.clipboard.writeText(selecaoAtual.texto)
+  avisar('Trecho copiado.')
   $('acoes-selecao').hidden = true
-  $('campo-pergunta').focus()
 })
 
 $('btn-sel-ideia').addEventListener('click', () => {
@@ -314,117 +296,6 @@ $('btn-sel-ideia').addEventListener('click', () => {
   $('acoes-selecao').hidden = true
 })
 
-// ------------------------------------------------------------ chat
-
-function atualizarContextoChat(caminho) {
-  const caixa = $('chat-contexto')
-  const usar = usarContexto && (caminho ?? arquivoAberto?.caminho)
-  caixa.hidden = !usar
-  if (usar) $('chat-contexto-nome').textContent = caminho ?? arquivoAberto.caminho
-}
-
-$('btn-tirar-contexto').addEventListener('click', () => {
-  usarContexto = !usarContexto
-  atualizarContextoChat()
-  if (!usarContexto && arquivoAberto) {
-    $('btn-tirar-contexto').title = 'voltar a perguntar sobre este arquivo'
-    avisar('Chat perguntando sobre o repositório todo.')
-  } else {
-    avisar(`Chat perguntando sobre ${arquivoAberto?.caminho ?? 'o repositório'}.`)
-  }
-})
-
-function adicionarMensagem(quem, texto, opcoes = {}) {
-  $('chat-historico').querySelector('.vazio')?.remove()
-
-  const bloco = document.createElement('div')
-  bloco.className = quem === 'eu' ? 'mensagem eu' : 'mensagem'
-  bloco.innerHTML = `<div class="quem">${quem === 'eu' ? 'você' : 'orientador'}</div>
-    <div class="texto">${esc(texto)}</div>`
-
-  if (opcoes.trechos?.length || opcoes.ideias?.length) {
-    const refs = document.createElement('div')
-    refs.className = 'referencias'
-
-    for (const ideia of opcoes.ideias ?? []) {
-      const item = document.createElement('button')
-      item.className = 'referencia'
-      item.textContent = `✦ ideia: ${ideia.titulo}`
-      item.addEventListener('click', () => {
-        mostrarVisao('ideias')
-        $('filtro-texto').value = ideia.titulo
-        renderIdeias()
-      })
-      refs.append(item)
-    }
-
-    for (const trecho of opcoes.trechos ?? []) {
-      const item = document.createElement('button')
-      item.className = trecho.foco ? 'referencia foco' : 'referencia'
-      item.textContent = `${trecho.arquivo}:${trecho.linha}`
-      item.title = trecho.texto
-      item.addEventListener('click', () => abrirArquivo(trecho.arquivo, trecho.linha))
-      refs.append(item)
-    }
-    bloco.append(refs)
-  }
-
-  if (quem !== 'eu') {
-    const acoes = document.createElement('div')
-    acoes.className = 'acoes'
-    const botao = document.createElement('button')
-    botao.className = 'botao botao-fantasma'
-    botao.textContent = 'registrar como ideia'
-    botao.addEventListener('click', () => {
-      mostrarVisao('ideias')
-      $('ideia-corpo').value = texto
-      const primeira = opcoes.trechos?.[0]
-      if (primeira) $('ideia-origem').value = `${primeira.arquivo}:${primeira.linha}`
-      $('ideia-titulo').focus()
-    })
-    acoes.append(botao)
-    bloco.append(acoes)
-  }
-
-  const historico = $('chat-historico')
-  historico.append(bloco)
-  historico.scrollTop = historico.scrollHeight
-}
-
-$('btn-limpar-chat').addEventListener('click', () => {
-  historicoChat.length = 0
-  $('chat-historico').innerHTML =
-    '<div class="vazio">Pergunte em linguagem natural. Sem chave de API eu mostro trechos do repositório e o que você já registrou, sem inventar.</div>'
-})
-
-$('form-chat').addEventListener('submit', async (evento) => {
-  evento.preventDefault()
-  const campo = $('campo-pergunta')
-  const pergunta = campo.value.trim()
-  if (!pergunta) return
-
-  campo.value = ''
-  adicionarMensagem('eu', pergunta)
-  const botao = $('btn-perguntar')
-  botao.disabled = true
-  botao.textContent = '…'
-
-  try {
-    const arquivo = usarContexto ? (arquivoAberto?.caminho ?? '') : ''
-    const resultado = await api('/api/chat', {
-      method: 'POST',
-      body: JSON.stringify({ pergunta, historico: historicoChat, arquivo }),
-    })
-    adicionarMensagem('orientador', resultado.texto, resultado)
-    historicoChat.push({ role: 'user', content: pergunta }, { role: 'assistant', content: resultado.texto })
-    await carregar()
-  } catch (erro) {
-    adicionarMensagem('orientador', `Erro: ${erro.message}`)
-  } finally {
-    botao.disabled = false
-    botao.textContent = 'Perguntar'
-  }
-})
 
 // ----------------------------------------------------------- ideias
 
@@ -679,7 +550,7 @@ function renderSessoes() {
     const duracao = fim ? `${Math.max(1, Math.round((fim - inicio) / 60000))} min` : 'em andamento'
 
     item.innerHTML = `<div class="titulo">${esc(sessao.titulo)}</div>
-      <div class="dados">${inicio.toLocaleString('pt-BR')} · ${duracao} · ${total} ideia${total === 1 ? '' : 's'} · ${sessao.perguntas.length} pergunta${sessao.perguntas.length === 1 ? '' : 's'}</div>`
+      <div class="dados">${inicio.toLocaleString('pt-BR')} · ${duracao} · ${total} ideia${total === 1 ? '' : 's'}</div>`
 
     if (sessao.resumo) {
       item.addEventListener('click', async () => {

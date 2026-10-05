@@ -3,8 +3,8 @@
  * Ambiente de estudo do DeepSeek Harness.
  *
  * Servidor HTTP local, sem dependencias externas, que sustenta tres coisas:
- *   1. o registro de ideias (bons habitos, tecnicas e decisoes que valem para projetos);
- *   2. o chat de duvidas, respostas e orientacoes rapidas;
+ *   1. o navegador de codigo do repositorio (arvore, busca por nome, leitor);
+ *   2. o registro de ideias (bons habitos, tecnicas e decisoes que valem para projetos);
  *   3. o resumo de fim de sessao de estudos.
  *
  * Rode com: node estudo/servidor.mjs
@@ -29,17 +29,6 @@ const PASTA_PUBLICA = join(BASE, 'publico')
 const PORTA = Number(process.env.PORTA_ESTUDO ?? 4321)
 const HOST = '127.0.0.1'
 
-/** Fontes varridas pelo buscador do chat. Caminhos relativos a raiz do repo. */
-const FONTES_BUSCA = ['docs', 'AGENTS.md', 'README.md', 'packages']
-
-/** Peso de relevancia por pasta: quanto maior, mais alto o resultado aparece. */
-const PESO_FONTE = {
-  'AGENTS.md': 6,
-  README: 5,
-  docs: 4,
-  packages: 2,
-}
-
 // ---------------------------------------------------------------- utilidades
 
 /** Remove acentos e caixa para comparacao. */
@@ -48,32 +37,6 @@ function normalizar(texto) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-}
-
-/**
- * Quebra a consulta em termos pesquisaveis.
- *
- * Hifen e underline ficam dentro do termo, porque neste repositorio o nome
- * composto e que identifica a coisa ("agent-loop", "capability-seam"). O termo
- * composto pesa mais que cada pedaco solto.
- *
- * @param {string} consulta Texto da pergunta.
- * @returns {{texto: string, peso: number}[]} Termos com seus pesos.
- */
-function tokenizar(consulta) {
-  const compostos = normalizar(consulta)
-    .split(/[^\p{L}\p{N}\-_]+/u)
-    .map((termo) => termo.replace(/^[-_]+|[-_]+$/g, ''))
-    .filter((termo) => termo.length > 2)
-
-  const porPeso = new Map()
-  for (const composto of compostos) {
-    porPeso.set(composto, 3)
-    for (const parte of composto.split(/[-_]/)) {
-      if (parte.length > 2 && !porPeso.has(parte)) porPeso.set(parte, 1)
-    }
-  }
-  return [...porPeso].map(([texto, peso]) => ({ texto, peso }))
 }
 
 /** Escreve JSON de forma atomica o suficiente para uso local. */
@@ -112,12 +75,19 @@ function sessaoAtiva(estado) {
   return estado.sessoes.find((s) => s.id === estado.sessaoAtivaId)
 }
 
-// ---------------------------------------------------------------- busca
+// ----------------------------------------------------------- arquivos do repo
 
-/** Indice em memoria: um registro por arquivo, nao por linha. */
+/** Indice em memoria: so os caminhos, porque o conteudo e lido sob demanda. */
 let indice = null
 
-/** Coleta recursivamente arquivos de texto sob um diretorio. */
+/** Nomes que ficam de fora do explorador e do indice. */
+const IGNORADOS = new Set(['.git', 'node_modules', 'lib', 'coverage', '.cache'])
+
+/**
+ * Coleta recursivamente os caminhos de arquivo sob um diretorio.
+ * @param {string} caminho Diretorio absoluto de partida.
+ * @param {string[]} acumulado Lista de caminhos relativos ao repositorio.
+ */
 async function coletarArquivos(caminho, acumulado) {
   let itens
   try {
@@ -126,246 +96,26 @@ async function coletarArquivos(caminho, acumulado) {
     return
   }
   for (const item of itens) {
-    if (item.name === 'node_modules' || item.name === '.git' || item.name === 'lib') continue
+    if (IGNORADOS.has(item.name)) continue
     const filho = join(caminho, item.name)
     if (item.isDirectory()) {
       await coletarArquivos(filho, acumulado)
-    } else if (['.md', '.ts', '.mjs', '.js', '.json'].includes(extname(item.name))) {
-      acumulado.push(filho)
+    } else {
+      acumulado.push(relative(RAIZ_REPO, filho).split('\\').join('/'))
     }
   }
 }
 
-/** Monta (ou reaproveita) o indice dos arquivos pesquisaveis. */
+/** Lista os arquivos do repositorio, do caminho mais curto para o mais longo. */
 async function obterIndice() {
-  if (indice) return indice
-
-  const arquivos = []
-  for (const fonte of FONTES_BUSCA) {
-    const alvo = join(RAIZ_REPO, fonte)
-    if (!existsSync(alvo)) continue
-    const irmaos = await readdir(dirname(alvo), { withFileTypes: true })
-    const entrada = irmaos.find((e) => e.name === fonte)
-    if (entrada?.isDirectory()) await coletarArquivos(alvo, arquivos)
-    else arquivos.push(alvo)
+  if (!indice) {
+    const arquivos = []
+    await coletarArquivos(RAIZ_REPO, arquivos)
+    // Caminho curto primeiro: costuma ser o arquivo principal, nao um teste fundo.
+    arquivos.sort((a, b) => a.length - b.length || a.localeCompare(b, 'pt-BR'))
+    indice = { arquivos }
   }
-
-  const documentos = []
-  for (const arquivo of arquivos) {
-    let conteudo
-    try {
-      conteudo = await readFile(arquivo, 'utf8')
-    } catch {
-      continue
-    }
-    const relativo = relative(RAIZ_REPO, arquivo).split('\\').join('/')
-    let peso = 1
-    for (const [chave, valor] of Object.entries(PESO_FONTE)) {
-      if (relativo === chave || relativo.startsWith(`${chave}/`)) peso = valor
-    }
-    documentos.push({ arquivo: relativo, peso, texto: conteudo, normalizado: normalizar(conteudo) })
-  }
-
-  indice = { documentos }
   return indice
-}
-
-/**
- * Busca por termos no repositorio e no registro de ideias.
- * @param {string} consulta Texto da pergunta.
- * @param {object} estado Estado atual, para incluir as ideias.
- * @param {string} [arquivoFoco] Arquivo aberto no leitor, que vem primeiro.
- * @returns {Promise<{trechos: object[], ideias: object[], totalArquivos: number}>}
- */
-async function buscar(consulta, estado, arquivoFoco = '') {
-  const termos = tokenizar(consulta)
-
-  if (termos.length === 0) return { trechos: [], ideias: [], totalArquivos: 0 }
-
-  const { documentos } = await obterIndice()
-
-  // O arquivo aberto no leitor responde primeiro: a pergunta quase sempre e
-  // sobre o que esta na tela.
-  const trechos = []
-  const normalizadoFoco = arquivoFoco.replace(/\\/g, '/')
-  if (normalizadoFoco) {
-    const documento = documentos.find((d) => d.arquivo === normalizadoFoco)
-    if (documento) {
-      const linhas = documento.texto.split('\n')
-      const normalizadas = documento.normalizado.split('\n')
-      for (let i = 0; i < linhas.length && trechos.length < 8; i += 1) {
-        const alvo = normalizadas[i] ?? ''
-        if (!termos.some((termo) => alvo.includes(termo.texto))) continue
-        const limpo = linhas[i].trim()
-        if (limpo.length < 8) continue
-        trechos.push({ arquivo: documento.arquivo, linha: i + 1, texto: limpo, pontos: 9999, foco: true })
-      }
-    }
-  }
-
-  // Uma passada pelos arquivos: descobre quais termos cada um contem e, de
-  // quebra, em quantos arquivos cada termo aparece.
-  const frequencia = new Map(termos.map((termo) => [termo.texto, 0]))
-  const candidatos = []
-  for (const documento of documentos) {
-    const encontrados = termos.filter((termo) => documento.normalizado.includes(termo.texto))
-    if (encontrados.length === 0) continue
-    for (const termo of encontrados) frequencia.set(termo.texto, frequencia.get(termo.texto) + 1)
-    candidatos.push({ documento, encontrados })
-  }
-
-  // Termo raro vale muito mais que termo comum: "agent-loop" decide a busca,
-  // "modelo" quase nao pesa.
-  const raridade = (termo) => 1 / Math.log(2 + (frequencia.get(termo) ?? 0))
-
-  const pontuados = candidatos.map(({ documento, encontrados }) => {
-    let pontos = 0
-    for (const termo of encontrados) pontos += raridade(termo.texto) * termo.peso * 10
-    // Casar mais termos da pergunta vale mais que casar um so, por mais raro que seja.
-    pontos += encontrados.length * 8
-    pontos += documento.peso
-    const caminho = normalizar(documento.arquivo)
-    for (const termo of encontrados) if (caminho.includes(termo.texto)) pontos += 6
-    // A copia em chines duplica todo documento; sem pergunta em chines ela so atrapalha.
-    if (documento.arquivo.includes('.zh.') && !/[\u4e00-\u9fff]/u.test(consulta)) pontos -= 8
-    return { documento, encontrados, pontos }
-  })
-  pontuados.sort((a, b) => b.pontos - a.pontos)
-
-  // So entao desce ao nivel da linha, nos arquivos que passaram.
-  for (const { documento, encontrados, pontos } of pontuados) {
-    if (documento.arquivo === normalizadoFoco) continue
-    const linhas = documento.texto.split('\n')
-    const normalizadas = documento.normalizado.split('\n')
-    let achados = 0
-    for (let i = 0; i < linhas.length && achados < 2; i += 1) {
-      const limpo = linhas[i].trim()
-      if (limpo.length < 8) continue
-      const alvo = normalizadas[i] ?? ''
-      let acertos = 0
-      for (const termo of encontrados) if (alvo.includes(termo.texto)) acertos += 1
-      if (acertos === 0) continue
-      trechos.push({ arquivo: documento.arquivo, linha: i + 1, texto: limpo, pontos })
-      achados += 1
-    }
-    if (trechos.length >= 12) break
-  }
-
-  const ideias = estado.ideias
-    .map((ideia) => {
-      const alvo = normalizar(`${ideia.titulo} ${ideia.corpo} ${(ideia.tags ?? []).join(' ')} ${ideia.area ?? ''}`)
-      let pontos = 0
-      for (const termo of termos) {
-        if (alvo.includes(termo.texto)) pontos += raridade(termo.texto) * termo.peso + 0.5
-      }
-      return { ideia, pontos }
-    })
-    .filter((x) => x.pontos > 0)
-    .sort((a, b) => b.pontos - a.pontos)
-    .map((x) => x.ideia)
-
-  return { trechos, ideias: ideias.slice(0, 8), totalArquivos: documentos.length }
-}
-
-// ---------------------------------------------------------------- chat
-
-const SISTEMA_CHAT = `Voce e um orientador de estudo do codigo do DeepSeek Harness.
-Quem pergunta nao programa: explique em linguagem natural, sem jargao e sem trecho de codigo,
-dizendo o que a pratica resolve e quando ela vale a pena.
-Baseie a resposta nos trechos do repositorio fornecidos e cite arquivo e linha.
-Se os trechos nao bastarem, diga o que falta em vez de inventar.`
-
-/** Chamada ao modelo, quando ha chave configurada. */
-async function responderComModelo(pergunta, trechos, ideias, historico, arquivoFoco = '') {
-  const chave = process.env.DEEPSEEK_API_KEY
-  const base = process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com'
-  const modelo = process.env.DEEPSEEK_MODELO ?? 'deepseek-chat'
-
-  const contextoRepositorio = trechos
-    .map((t) => `${t.arquivo}:${t.linha} — ${t.texto}`)
-    .join('\n')
-  const contextoIdeias = ideias.map((i) => `- ${i.titulo}: ${i.corpo}`).join('\n')
-
-  const blocos = []
-  if (arquivoFoco) {
-    blocos.push('Arquivo aberto no leitor do usuario:', arquivoFoco, '')
-  }
-  blocos.push(
-    'Trechos do repositorio:',
-    contextoRepositorio || '(nenhum trecho encontrado)',
-    '',
-    'Ideias ja registradas por mim:',
-    contextoIdeias || '(nenhuma)',
-  )
-
-  const mensagens = [
-    { role: 'system', content: SISTEMA_CHAT },
-    { role: 'user', content: blocos.join('\n') },
-    ...historico.slice(-6),
-    { role: 'user', content: pergunta },
-  ]
-
-  const resposta = await fetch(`${base}/chat/completions`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${chave}` },
-    body: JSON.stringify({ model: modelo, messages: mensagens, temperature: 0.2 }),
-  })
-
-  if (!resposta.ok) {
-    throw new Error(`API respondeu ${resposta.status}: ${(await resposta.text()).slice(0, 300)}`)
-  }
-  const dados = await resposta.json()
-  return dados.choices?.[0]?.message?.content ?? '(resposta vazia)'
-}
-
-/**
- * Responde uma pergunta do chat.
- * Sem DEEPSEEK_API_KEY, devolve as orientacoes montadas a partir do que ja
- * esta registrado e dos trechos encontrados, sem inventar resposta.
- *
- * @param {string} pergunta Texto da pergunta.
- * @param {object} estado Estado atual.
- * @param {object[]} [historico] Turnos anteriores da conversa.
- * @param {string} [arquivoFoco] Arquivo aberto no leitor.
- */
-async function responderChat(pergunta, estado, historico = [], arquivoFoco = '') {
-  const { trechos, ideias, totalArquivos } = await buscar(pergunta, estado, arquivoFoco)
-
-  if (process.env.DEEPSEEK_API_KEY) {
-    try {
-      const texto = await responderComModelo(pergunta, trechos, ideias, historico, arquivoFoco)
-      return { modo: 'modelo', texto, trechos, ideias }
-    } catch (erro) {
-      return {
-        modo: 'erro-modelo',
-        texto: `Nao consegui falar com o modelo: ${erro.message}\n\nSegue o que achei no repositorio e no seu registro.`,
-        trechos,
-        ideias,
-      }
-    }
-  }
-
-  const partes = []
-  if (arquivoFoco) partes.push(`Procurando primeiro em ${arquivoFoco}.`, '')
-  if (ideias.length > 0) {
-    partes.push('Do seu registro:')
-    for (const ideia of ideias) partes.push(`• ${ideia.titulo} — ${ideia.corpo}`)
-    partes.push('')
-  }
-  if (trechos.length > 0) {
-    partes.push(`No repositorio (${trechos.length} de ${totalArquivos} arquivos varridos):`)
-    for (const t of trechos) partes.push(`• ${t.arquivo}:${t.linha} — ${t.texto}`)
-  }
-  if (partes.length === 0) {
-    partes.push('Nao achei nada com esses termos. Tente outras palavras ou registre a ideia na mao.')
-  }
-  partes.push('')
-  partes.push(
-    '(modo local: sem DEEPSEEK_API_KEY eu so mostro o que existe, nao respondo por conta propria. ' +
-      'Os documentos do repositorio sao em ingles: termos em ingles acertam bem mais.)',
-  )
-
-  return { modo: 'local', texto: partes.join('\n'), trechos, ideias }
 }
 
 // ---------------------------------------------------------------- resumo
@@ -385,7 +135,6 @@ function montarResumo(sessao, ideias) {
   linhas.push(`- Fim: ${fim.toLocaleString('pt-BR')}`)
   linhas.push(`- Duracao: ${minutos} min`)
   linhas.push(`- Ideias registradas: ${ideias.length}`)
-  linhas.push(`- Perguntas feitas: ${(sessao.perguntas ?? []).length}`)
   linhas.push('')
 
   const paraProjeto = ideias.filter((i) => i.projeto)
@@ -419,17 +168,6 @@ function montarResumo(sessao, ideias) {
     linhas.push('')
   }
 
-  if ((sessao.perguntas ?? []).length > 0) {
-    linhas.push('## Perguntas da sessao')
-    linhas.push('')
-    for (const p of sessao.perguntas) {
-      linhas.push(`**${p.pergunta}**`)
-      linhas.push('')
-      linhas.push(p.resposta.split('\n').map((l) => `> ${l}`).join('\n'))
-      linhas.push('')
-    }
-  }
-
   return `${linhas.join('\n').trimEnd()}\n`
 }
 
@@ -437,9 +175,6 @@ function montarResumo(sessao, ideias) {
 
 /** Teto de tamanho para o leitor abrir um arquivo. */
 const LIMITE_LEITURA = 400_000
-
-/** Nomes que ficam de fora do explorador. */
-const IGNORADOS = new Set(['.git', 'node_modules', 'lib', 'coverage', '.cache'])
 
 /** Resolve um caminho relativo ao repositorio, recusando o que sai dele. */
 function resolverNoRepo(relativo) {
@@ -504,6 +239,10 @@ async function lerArquivoDoRepo(relativo) {
     throw new Error(`arquivo grande demais para o leitor (${Math.round(info.size / 1024)} KB)`)
   }
   const conteudo = await readFile(alvo, 'utf8')
+  // Byte nulo e sinal de arquivo binario: nao ha o que ler como texto.
+  if (conteudo.slice(0, 8000).includes('\u0000')) {
+    throw new Error('isto e um arquivo binario, nao da para mostrar como texto')
+  }
   return {
     caminho: relativo,
     classe: classificarArquivo(relativo),
@@ -563,11 +302,7 @@ const servidor = createServer(async (req, res) => {
     // --- estado geral -------------------------------------------------
     if (rota === '/api/estado' && req.method === 'GET') {
       const estado = await lerEstado()
-      return responderJson(res, 200, {
-        ...estado,
-        modoChat: process.env.DEEPSEEK_API_KEY ? 'modelo' : 'local',
-        raizRepo: RAIZ_REPO,
-      })
+      return responderJson(res, 200, { ...estado, raizRepo: RAIZ_REPO })
     }
 
     // --- explorador de codigo -----------------------------------------
@@ -585,12 +320,10 @@ const servidor = createServer(async (req, res) => {
       const termo = normalizar(url.searchParams.get('q') ?? '')
       if (termo.length < 2) return responderJson(res, 200, { resultados: [] })
 
-      const { documentos } = await obterIndice()
-      const resultados = documentos
-        .filter((documento) => normalizar(documento.arquivo).includes(termo))
-        .map((documento) => ({ caminho: documento.arquivo, classe: classificarArquivo(documento.arquivo) }))
-        // Caminho curto primeiro: costuma ser o arquivo principal, nao um teste fundo.
-        .sort((a, b) => a.caminho.length - b.caminho.length || a.caminho.localeCompare(b.caminho, 'pt-BR'))
+      const { arquivos } = await obterIndice()
+      const resultados = arquivos
+        .filter((caminho) => normalizar(caminho).includes(termo))
+        .map((caminho) => ({ caminho, classe: classificarArquivo(caminho) }))
         .slice(0, 60)
 
       return responderJson(res, 200, { resultados })
@@ -607,7 +340,6 @@ const servidor = createServer(async (req, res) => {
         iniciadaEm: new Date().toISOString(),
         encerradaEm: null,
         resumo: null,
-        perguntas: [],
       }
       estado.sessoes.push(sessao)
       estado.sessaoAtivaId = sessao.id
@@ -706,32 +438,6 @@ const servidor = createServer(async (req, res) => {
       }
     }
 
-    // --- chat ---------------------------------------------------------
-    if (rota === '/api/chat' && req.method === 'POST') {
-      const { pergunta, historico, arquivo } = await lerCorpo(req)
-      if (!pergunta?.trim()) return responderJson(res, 400, { erro: 'pergunta obrigatoria' })
-
-      const estado = await lerEstado()
-      const resultado = await responderChat(pergunta.trim(), estado, historico ?? [], arquivo ?? '')
-
-      const sessao = sessaoAtiva(estado)
-      if (sessao) {
-        sessao.perguntas.push({
-          em: new Date().toISOString(),
-          pergunta: pergunta.trim(),
-          resposta: resultado.texto,
-        })
-        await salvarEstado(estado)
-      }
-      return responderJson(res, 200, resultado)
-    }
-
-    if (rota === '/api/buscar' && req.method === 'GET') {
-      const estado = await lerEstado()
-      const resultado = await buscar(url.searchParams.get('q') ?? '', estado)
-      return responderJson(res, 200, resultado)
-    }
-
     // --- estatico -----------------------------------------------------
     return servirEstatico(res, rota)
   } catch (erro) {
@@ -741,10 +447,9 @@ const servidor = createServer(async (req, res) => {
 
 servidor.listen(PORTA, HOST, async () => {
   const estado = await lerEstado()
-  const { documentos } = await obterIndice()
+  const { arquivos } = await obterIndice()
   console.log(`Ambiente de estudo no ar: http://${HOST}:${PORTA}`)
   console.log(`Repositorio: ${RAIZ_REPO}`)
-  console.log(`Indice do chat: ${documentos.length} arquivos`)
+  console.log(`Arquivos navegaveis: ${arquivos.length}`)
   console.log(`Ideias registradas: ${estado.ideias.length}`)
-  console.log(`Chat: ${process.env.DEEPSEEK_API_KEY ? 'com modelo' : 'modo local (sem DEEPSEEK_API_KEY)'}`)
 })

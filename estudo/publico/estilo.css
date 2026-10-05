@@ -105,26 +105,13 @@ h2 {
   color: var(--texto-fraco);
 }
 
-.selo {
-  font-size: 11px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid var(--borda);
-  color: var(--texto-fraco);
-}
-
-.selo.modelo {
-  border-color: var(--bom);
-  color: var(--bom);
-}
-
 /* ------------------------------------------------------------ corpo */
 
 .corpo {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 190px 1fr 380px;
+  grid-template-columns: 190px 1fr;
 }
 
 .menu {
@@ -847,161 +834,6 @@ h2 {
   padding: 16px 18px 40px;
 }
 
-/* ----------------------------------------------------------- chat */
-
-.chat {
-  background: var(--painel);
-  border-left: 1px solid var(--borda);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.chat-cabecalho {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--borda);
-}
-
-.chat-contexto {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  background: var(--acento-fundo);
-  border-bottom: 1px solid var(--borda);
-  font-size: 12px;
-}
-
-.contexto-rotulo {
-  color: var(--texto-fraco);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  flex: none;
-}
-
-.chat-contexto strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--mono);
-  font-size: 11px;
-}
-
-.contexto-tirar {
-  margin-left: auto;
-  background: none;
-  border: none;
-  color: var(--texto-fraco);
-  cursor: pointer;
-  font-size: 15px;
-  line-height: 1;
-  padding: 0 2px;
-}
-
-.contexto-tirar:hover {
-  color: var(--texto);
-}
-
-.chat-historico {
-  flex: 1;
-  overflow-y: auto;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-}
-
-.vazio {
-  color: var(--texto-fraco);
-  font-size: 12.5px;
-  border: 1px dashed var(--borda);
-  border-radius: var(--raio);
-  padding: 13px;
-  line-height: 1.6;
-}
-
-.mensagem {
-  max-width: 96%;
-}
-
-.mensagem .quem {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--texto-fraco);
-  margin-bottom: 4px;
-}
-
-.mensagem .texto {
-  white-space: pre-wrap;
-  word-break: break-word;
-  padding: 10px 12px;
-  border-radius: var(--raio);
-  background: var(--campo);
-  border: 1px solid var(--borda);
-  font-size: 13px;
-}
-
-.mensagem.eu {
-  align-self: flex-end;
-}
-
-.mensagem.eu .quem {
-  text-align: right;
-}
-
-.mensagem.eu .texto {
-  background: var(--acento-fundo);
-  border-color: var(--acento);
-}
-
-.mensagem .acoes {
-  margin-top: 6px;
-}
-
-.referencias {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.referencia {
-  font-size: 11.5px;
-  color: var(--texto-fraco);
-  cursor: pointer;
-  border: none;
-  background: none;
-  text-align: left;
-  padding: 2px 0;
-  font-family: var(--mono);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.referencia:hover {
-  color: var(--acento);
-}
-
-.referencia.foco::before {
-  content: "aqui · ";
-  color: var(--bom);
-  font-family: "Segoe UI", system-ui, sans-serif;
-}
-
-.chat-entrada {
-  display: flex;
-  gap: 8px;
-  padding: 12px 14px;
-  border-top: 1px solid var(--borda);
-  align-items: flex-end;
-}
-
 /* ---------------------------------------------------------- campos */
 
 input,
@@ -1114,7 +946,7 @@ button:focus-visible {
 
 @media (max-width: 1350px) {
   .corpo {
-    grid-template-columns: 68px 1fr 330px;
+    grid-template-columns: 68px 1fr;
   }
   .menu-texto {
     display: none;
