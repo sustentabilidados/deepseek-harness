@@ -1,0 +1,62 @@
+{
+  "versao": 1,
+  "sessoes": [],
+  "ideias": [
+    {
+      "id": "ideia-0001-git-openssl",
+      "criadaEm": "2026-10-03T00:00:00.000Z",
+      "atualizadaEm": "2026-10-03T00:00:00.000Z",
+      "sessaoId": null,
+      "titulo": "No Windows, git via HTTPS quebra no sandbox; resolver com http.sslBackend=openssl",
+      "corpo": "Dentro do sandbox do harness, git clone/fetch falha com 'schannel: AcquireCredentialsHandle failed: SEC_E_NO_CREDENTIALS'. O backend schannel nao acessa o armazenamento de credenciais TLS do Windows sob o token confinado. Rodar 'git config http.sslBackend openssl' (local do repo, ou --global) faz o git voltar a funcionar SEM precisar de acesso total. Vale para qualquer projeto que rode comandos git de dentro de um agente confinado no Windows.",
+      "tags": [
+        "git",
+        "windows",
+        "sandbox",
+        "tls"
+      ],
+      "area": "ambiente",
+      "importancia": "alta",
+      "projeto": true,
+      "origem": "sessao de instalacao do fork",
+      "status": "aberta"
+    },
+    {
+      "id": "ideia-0002-upstream-push-desabilitado",
+      "criadaEm": "2026-10-03T00:00:00.000Z",
+      "atualizadaEm": "2026-10-03T00:00:00.000Z",
+      "sessaoId": null,
+      "titulo": "Em fork, adicionar upstream e desabilitar o push dele",
+      "corpo": "Depois do clone do fork: 'git remote add upstream <repo original>' e 'git remote set-url --push upstream DISABLE'. Assim 'git remote -v' mostra claramente que upstream e somente leitura, e um 'git push upstream' acidental falha em vez de tentar escrever no repositorio de terceiros. Acompanhar com 'git rev-list --count upstream/master..master' e o inverso para saber o quanto o fork divergiu.",
+      "tags": [
+        "git",
+        "fork",
+        "seguranca"
+      ],
+      "area": "git",
+      "importancia": "alta",
+      "projeto": true,
+      "origem": "git remote -v",
+      "status": "aberta"
+    },
+    {
+      "id": "ideia-0003-fora-dos-workspaces",
+      "criadaEm": "2026-10-03T00:00:00.000Z",
+      "atualizadaEm": "2026-10-03T00:00:00.000Z",
+      "sessaoId": null,
+      "titulo": "Ferramenta de estudo dentro do repo, mas fora dos workspaces do pnpm",
+      "corpo": "O pnpm-workspace.yaml declara apenas vendor/*, packages/*/*, native/system, apps/*, benchmarks, website e python/sdk-runtime. Uma pasta na raiz, como estudo/, nao e tratada como pacote: nao entra em build, lint, typecheck nem nos gates de documentacao. Da para versionar a ferramenta junto do codigo estudado sem sujar o pipeline.",
+      "tags": [
+        "organizacao",
+        "monorepo",
+        "pnpm"
+      ],
+      "area": "organizacao",
+      "importancia": "media",
+      "projeto": true,
+      "origem": "pnpm-workspace.yaml",
+      "status": "aberta"
+    }
+  ],
+  "sessaoAtivaId": null
+}

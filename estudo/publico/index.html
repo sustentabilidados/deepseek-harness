@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Estudo — DeepSeek Harness</title>
+    <link rel="stylesheet" href="/estilo.css" />
+  </head>
+  <body>
+    <header class="topo">
+      <div class="topo-marca">
+        <span class="ponto"></span>
+        <div>
+          <h1>Estudo — DeepSeek Harness</h1>
+          <p class="topo-sub" id="topo-repo">carregando…</p>
+        </div>
+      </div>
+
+      <div class="topo-sessao">
+        <div class="sessao-info">
+          <span class="rotulo">Sessão</span>
+          <strong id="sessao-titulo">nenhuma aberta</strong>
+        </div>
+        <button id="btn-sessao" class="botao botao-primario">Iniciar sessão</button>
+        <span class="selo" id="selo-chat">chat</span>
+      </div>
+    </header>
+
+    <main class="grade">
+      <!-- ------------------------------------------------------- chat -->
+      <section class="painel" id="painel-chat">
+        <div class="painel-cabecalho">
+          <h2>Dúvidas e orientações rápidas</h2>
+          <span class="contador" id="contador-perguntas">0 perguntas</span>
+        </div>
+
+        <div class="chat-historico" id="chat-historico">
+          <div class="vazio">
+            Pergunte sobre o código. Sem chave de API eu devolvo trechos do repositório
+            e o que você já registrou, sem inventar.
+          </div>
+        </div>
+
+        <form class="chat-entrada" id="form-chat">
+          <textarea id="campo-pergunta" rows="2" placeholder="Ex.: como um plugin registra um serviço?"></textarea>
+          <button type="submit" class="botao botao-primario" id="btn-perguntar">Perguntar</button>
+        </form>
+      </section>
+
+      <!-- ----------------------------------------------------- ideias -->
+      <section class="painel" id="painel-ideias">
+        <div class="painel-cabecalho">
+          <h2>Registro de ideias</h2>
+          <span class="contador" id="contador-ideias">0 ideias</span>
+        </div>
+
+        <form class="form-ideia" id="form-ideia">
+          <input id="ideia-titulo" placeholder="Título curto do hábito ou técnica" required />
+          <textarea id="ideia-corpo" rows="3" placeholder="O que é, e por que vale a pena"></textarea>
+          <div class="linha-campos">
+            <input id="ideia-area" placeholder="Área (ex.: testes, git, plugins)" />
+            <input id="ideia-tags" placeholder="tags separadas por vírgula" />
+            <select id="ideia-importancia">
+              <option value="alta">importância alta</option>
+              <option value="media" selected>importância média</option>
+              <option value="baixa">importância baixa</option>
+            </select>
+          </div>
+          <input id="ideia-origem" placeholder="origem (ex.: docs/architecture.md:42)" />
+          <div class="linha-acoes">
+            <label class="caixa">
+              <input type="checkbox" id="ideia-projeto" checked />
+              vale para meus projetos
+            </label>
+            <button type="submit" class="botao botao-primario">Registrar ideia</button>
+          </div>
+        </form>
+
+        <div class="filtros">
+          <input id="filtro-texto" placeholder="filtrar…" />
+          <select id="filtro-visao">
+            <option value="todas">todas</option>
+            <option value="projeto">só as de projeto</option>
+            <option value="alta">só importância alta</option>
+            <option value="sessao">só desta sessão</option>
+          </select>
+        </div>
+
+        <div class="lista-ideias" id="lista-ideias"></div>
+      </section>
+
+      <!-- ---------------------------------------------------- sessoes -->
+      <section class="painel" id="painel-sessoes">
+        <div class="painel-cabecalho">
+          <h2>Sessões e resumos</h2>
+        </div>
+        <div class="lista-sessoes" id="lista-sessoes"></div>
+        <div class="resumo" id="resumo-area" hidden>
+          <div class="resumo-cabecalho">
+            <h3 id="resumo-titulo">Resumo</h3>
+            <button class="botao botao-fantasma" id="btn-fechar-resumo">fechar</button>
+          </div>
+          <pre id="resumo-conteudo"></pre>
+        </div>
+      </section>
+    </main>
+
+    <div class="aviso" id="aviso" hidden></div>
+    <script src="/app.js"></script>
+  </body>
+</html>
