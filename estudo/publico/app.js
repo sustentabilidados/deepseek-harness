@@ -291,13 +291,25 @@ $('btn-sel-ideia').addEventListener('click', () => {
   if (!selecaoAtual) return
   mostrarVisao('ideias')
   $('ideia-corpo').value = selecaoAtual.texto
-  $('ideia-origem').value = selecaoAtual.linha ? `${arquivoAberto.caminho}:${selecaoAtual.linha}` : arquivoAberto.caminho
+  lembrarOrigem(selecaoAtual.linha ? `${arquivoAberto.caminho}:${selecaoAtual.linha}` : arquivoAberto.caminho)
   $('ideia-titulo').focus()
   $('acoes-selecao').hidden = true
 })
 
-
 // ----------------------------------------------------------- ideias
+
+/**
+ * Guarda de onde a ideia veio. Fica fora do formulario de proposito: a origem
+ * e deduzida do contexto, nao e uma escolha de quem registra.
+ */
+let origemPendente = ''
+
+function lembrarOrigem(origem) {
+  origemPendente = origem
+  const caixa = $('origem-pendente')
+  caixa.hidden = !origem
+  caixa.textContent = origem ? `veio de ${origem}` : ''
+}
 
 $('form-ideia').addEventListener('submit', async (evento) => {
   evento.preventDefault()
@@ -307,14 +319,12 @@ $('form-ideia').addEventListener('submit', async (evento) => {
       body: JSON.stringify({
         titulo: $('ideia-titulo').value,
         corpo: $('ideia-corpo').value,
-        area: $('ideia-area').value,
-        tags: $('ideia-tags').value.split(','),
-        importancia: $('ideia-importancia').value,
-        projeto: $('ideia-projeto').checked,
-        origem: $('ideia-origem').value,
+        origem: origemPendente,
       }),
     })
-    for (const id of ['ideia-titulo', 'ideia-corpo', 'ideia-tags', 'ideia-origem']) $(id).value = ''
+    $('ideia-titulo').value = ''
+    $('ideia-corpo').value = ''
+    lembrarOrigem('')
     $('ideia-titulo').focus()
     avisar('Ideia registrada.')
     await carregar()
@@ -323,30 +333,20 @@ $('form-ideia').addEventListener('submit', async (evento) => {
   }
 })
 
-const ROTULO = { alta: 'alta', media: 'média', baixa: 'baixa' }
-
 let filtroArea = ''
 
 function ideiasFiltradas() {
   const texto = $('filtro-texto').value.trim().toLowerCase()
-  const visao = $('filtro-visao').value
 
   return estado.ideias
     .filter((i) => {
-      if (visao === 'projeto' && !i.projeto) return false
-      if (visao === 'alta' && i.importancia !== 'alta') return false
-      if (visao === 'sessao' && i.sessaoId !== estado.sessaoAtivaId) return false
       if (filtroArea && i.area !== filtroArea) return false
       if (!texto) return true
-      const alvo = `${i.titulo} ${i.corpo} ${i.area} ${(i.tags ?? []).join(' ')}`
+      const alvo = `${i.titulo} ${i.corpo} ${i.area ?? ''} ${(i.tags ?? []).join(' ')}`
       return alvo.toLowerCase().includes(texto)
     })
-    .sort((a, b) => {
-      if (a.projeto !== b.projeto) return a.projeto ? -1 : 1
-      const ordem = { alta: 0, media: 1, baixa: 2 }
-      if (ordem[a.importancia] !== ordem[b.importancia]) return ordem[a.importancia] - ordem[b.importancia]
-      return b.criadaEm.localeCompare(a.criadaEm)
-    })
+    // Mais recente primeiro: o registro cresce pelo fim.
+    .sort((a, b) => b.criadaEm.localeCompare(a.criadaEm))
 }
 
 async function alterarIdeia(id, mudanca) {
@@ -385,11 +385,7 @@ function renderIdeias() {
   for (const ideia of ideias) {
     const bloco = document.createElement('div')
     bloco.dataset.ideia = ideia.id
-    const classes = ['ideia']
-    if (ideia.projeto) classes.push('projeto')
-    if (ideia.importancia === 'alta') classes.push('alta')
-    if (ideia.status === 'descartada') classes.push('descartada')
-    bloco.className = classes.join(' ')
+    bloco.className = ideia.status === 'descartada' ? 'ideia descartada' : 'ideia'
 
     bloco.innerHTML = `
       <div class="ideia-titulo"><span>${esc(ideia.titulo)}</span></div>
@@ -397,6 +393,7 @@ function renderIdeias() {
       <div class="ideia-meta"></div>
       <div class="ideia-acoes"></div>`
 
+    // So mostra o que a ideia tiver: o registro simples nao preenche nada disso.
     const meta = bloco.querySelector('.ideia-meta')
     if (ideia.area) {
       const etiqueta = document.createElement('span')
@@ -404,10 +401,6 @@ function renderIdeias() {
       etiqueta.textContent = ideia.area
       meta.append(etiqueta)
     }
-    const importancia = document.createElement('span')
-    importancia.className = 'etiqueta'
-    importancia.textContent = ROTULO[ideia.importancia] ?? ideia.importancia
-    meta.append(importancia)
     for (const tag of ideia.tags ?? []) {
       const etiqueta = document.createElement('span')
       etiqueta.className = 'etiqueta'
@@ -415,12 +408,6 @@ function renderIdeias() {
       meta.append(etiqueta)
     }
     if (ideia.origem) ligarOrigem(ideia, meta)
-    if (ideia.projeto) {
-      const etiqueta = document.createElement('span')
-      etiqueta.className = 'etiqueta'
-      etiqueta.textContent = 'vale para projetos'
-      meta.append(etiqueta)
-    }
 
     const acoes = bloco.querySelector('.ideia-acoes')
     const criar = (texto, aoClicar) => {
@@ -431,9 +418,6 @@ function renderIdeias() {
       acoes.append(botao)
     }
 
-    criar(ideia.projeto ? 'tirar de projeto' : 'vale para projeto', () =>
-      alterarIdeia(ideia.id, { projeto: !ideia.projeto }),
-    )
     criar('editar', () => {
       const titulo = prompt('Título:', ideia.titulo)
       if (titulo === null) return
@@ -459,7 +443,6 @@ function renderIdeias() {
 }
 
 $('filtro-texto').addEventListener('input', renderIdeias)
-$('filtro-visao').addEventListener('change', renderIdeias)
 
 // -------------------------------------------------------- panorama
 
@@ -468,12 +451,37 @@ function renderPanorama() {
   const conteudo = $('panorama-conteudo')
   conteudo.innerHTML = ''
 
-  const projeto = ideias.filter((i) => i.projeto)
+  const porSessao = ideias.filter((i) => i.sessaoId).length
   conteudo.insertAdjacentHTML(
     'beforeend',
     `<div class="destaque-numero">${ideias.length}</div>
-     <div class="destaque-texto">ideias registradas · ${projeto.length} valem para seus projetos</div>`,
+     <div class="destaque-texto">ideias registradas${porSessao ? ` · ${porSessao} dentro de sessões` : ''}</div>`,
   )
+
+  // Indice de titulos: com o registro crescendo, achar uma ideia pelo nome e o
+  // que mais se faz. Clicar rola ate o cartao.
+  if (ideias.length > 0) {
+    const caixa = document.createElement('div')
+    caixa.className = 'panorama-grupo'
+    caixa.innerHTML = '<h3>Índice</h3>'
+    for (const ideia of ideias.slice().reverse()) {
+      const item = document.createElement('button')
+      item.className = 'indice-item'
+      item.textContent = ideia.titulo
+      item.title = ideia.titulo
+      item.addEventListener('click', () => {
+        $('filtro-texto').value = ''
+        filtroArea = ''
+        renderIdeias()
+        const cartao = document.querySelector(`[data-ideia="${ideia.id}"]`)
+        cartao?.scrollIntoView({ block: 'center' })
+        cartao?.classList.add('piscando')
+        setTimeout(() => cartao?.classList.remove('piscando'), 1200)
+      })
+      caixa.append(item)
+    }
+    conteudo.append(caixa)
+  }
 
   const contagem = (chave) => {
     const mapa = new Map()
@@ -508,7 +516,6 @@ function renderPanorama() {
 
   grupo('Por área', contagem((i) => i.area), (nome) => {
     filtroArea = filtroArea === nome ? '' : nome
-    $('filtro-visao').value = 'todas'
     $('filtro-texto').value = ''
     renderIdeias()
     avisar(filtroArea ? `Filtrando por área: ${nome}` : 'Filtro de área removido.')
@@ -516,15 +523,7 @@ function renderPanorama() {
 
   grupo('Por etiqueta', contagem((i) => i.tags ?? []), (nome) => {
     filtroArea = ''
-    $('filtro-visao').value = 'todas'
     $('filtro-texto').value = nome
-    renderIdeias()
-  })
-
-  grupo('Por importância', contagem((i) => ROTULO[i.importancia] ?? i.importancia), (nome) => {
-    filtroArea = ''
-    $('filtro-texto').value = ''
-    $('filtro-visao').value = nome === 'alta' ? 'alta' : 'todas'
     renderIdeias()
   })
 }

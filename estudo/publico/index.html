@@ -95,35 +95,17 @@
           <div class="registro">
             <form class="form-ideia" id="form-ideia">
               <h2>Nova ideia</h2>
-              <input id="ideia-titulo" placeholder="Título curto da técnica ou hábito" required />
-              <textarea id="ideia-corpo" rows="4" placeholder="Explique como se fosse pedir a um modelo de IA, em linguagem natural"></textarea>
-              <div class="linha-campos">
-                <input id="ideia-area" placeholder="Área (ex.: testes, git, plugins)" />
-                <input id="ideia-tags" placeholder="tags separadas por vírgula" />
-                <select id="ideia-importancia">
-                  <option value="alta">importância alta</option>
-                  <option value="media" selected>importância média</option>
-                  <option value="baixa">importância baixa</option>
-                </select>
-              </div>
-              <input id="ideia-origem" placeholder="origem (ex.: AGENTS.md:42)" />
+              <input id="ideia-titulo" placeholder="Título curto" required />
+              <textarea id="ideia-corpo" rows="4" placeholder="A ideia, direta"></textarea>
+              <div class="origem-pendente" id="origem-pendente" hidden></div>
               <div class="linha-acoes">
-                <label class="caixa">
-                  <input type="checkbox" id="ideia-projeto" checked />
-                  vale para meus projetos
-                </label>
-                <button type="submit" class="botao botao-primario">Registrar ideia</button>
+                <span class="dica">ou peça ao tutor: “anota essa ideia”</span>
+                <button type="submit" class="botao botao-primario">Registrar</button>
               </div>
             </form>
 
             <div class="filtros">
               <input id="filtro-texto" placeholder="filtrar…" />
-              <select id="filtro-visao">
-                <option value="todas">todas</option>
-                <option value="projeto">só as de projeto</option>
-                <option value="alta">só importância alta</option>
-                <option value="sessao">só desta sessão</option>
-              </select>
             </div>
 
             <div class="lista-ideias" id="lista-ideias"></div>

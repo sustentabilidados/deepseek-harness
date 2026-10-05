@@ -120,9 +120,12 @@ async function obterIndice() {
 
 // ---------------------------------------------------------------- resumo
 
-const ROTULO_IMPORTANCIA = { alta: 'Alta', media: 'Media', baixa: 'Baixa' }
-
-/** Monta o markdown de resumo de uma sessao encerrada. */
+/**
+ * Monta o markdown de resumo de uma sessao encerrada.
+ * @param {object} sessao Sessao encerrada.
+ * @param {object[]} ideias Ideias registradas dentro dela.
+ * @returns {string} Markdown.
+ */
 function montarResumo(sessao, ideias) {
   const linhas = []
   const inicio = new Date(sessao.iniciadaEm)
@@ -137,35 +140,25 @@ function montarResumo(sessao, ideias) {
   linhas.push(`- Ideias registradas: ${ideias.length}`)
   linhas.push('')
 
-  const paraProjeto = ideias.filter((i) => i.projeto)
-  linhas.push('## Vale para meus projetos')
+  linhas.push('## Ideias da sessao')
   linhas.push('')
-  if (paraProjeto.length === 0) {
-    linhas.push('_Nada marcado nesta sessao._')
-  } else {
-    for (const ideia of paraProjeto) {
-      linhas.push(`### ${ideia.titulo}`)
-      linhas.push('')
-      linhas.push(ideia.corpo)
-      linhas.push('')
-      const meta = []
-      if (ideia.area) meta.push(`area: ${ideia.area}`)
-      if (ideia.importancia) meta.push(`importancia: ${ROTULO_IMPORTANCIA[ideia.importancia] ?? ideia.importancia}`)
-      if ((ideia.tags ?? []).length) meta.push(`tags: ${ideia.tags.join(', ')}`)
-      if (ideia.origem) meta.push(`origem: ${ideia.origem}`)
-      if (meta.length) linhas.push(`_${meta.join(' · ')}_`)
-      linhas.push('')
-    }
+
+  if (ideias.length === 0) {
+    linhas.push('_Nenhuma ideia registrada nesta sessao._')
+    linhas.push('')
   }
 
-  const resto = ideias.filter((i) => !i.projeto)
-  if (resto.length > 0) {
-    linhas.push('## Outras ideias da sessao')
+  for (const ideia of ideias) {
+    linhas.push(`### ${ideia.titulo}`)
     linhas.push('')
-    for (const ideia of resto) {
-      linhas.push(`- **${ideia.titulo}** — ${ideia.corpo}`)
+    if (ideia.corpo) {
+      linhas.push(ideia.corpo)
+      linhas.push('')
     }
-    linhas.push('')
+    if (ideia.origem) {
+      linhas.push(`_origem: ${ideia.origem}_`)
+      linhas.push('')
+    }
   }
 
   return `${linhas.join('\n').trimEnd()}\n`

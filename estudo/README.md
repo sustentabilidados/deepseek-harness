@@ -4,8 +4,8 @@ Espaço de estudo do código do harness, feito para quem **não lê código**. A
 é aprender as estratégias em linguagem natural, registrar as que interessam, e
 depois cobrar dos modelos de IA se eles realmente usaram aquilo.
 
-**Aqui não tem chat.** As dúvidas e as orientações acontecem na conversa com o
-agente de IA. Esta ferramenta faz o outro lado: mostra a estrutura do harness,
+**Aqui não tem chat.** As dúvidas e o ensino acontecem na conversa com o tutor de
+programação. Esta ferramenta faz o outro lado: mostra a estrutura do harness,
 guarda o que você decidiu aproveitar, e fecha a sessão com um resumo.
 
 ## Rodar
@@ -28,19 +28,24 @@ node estudo/verificar.mjs
 | Visão | Para quê |
 | --- | --- |
 | **Estudar** | Navega a estrutura real do harness e lê os arquivos. Markdown sai formatado; o resto sai com número de linha. Comece por **Regras do projeto** (`AGENTS.md`) e por **Documentação**. |
-| **Ideias** | O que você quer levar para seus projetos. Cada ideia pode apontar para um arquivo e linha, e a visão geral mostra onde elas se concentram. |
-| **Sessões** | Cada sessão encerrada vira um resumo em markdown, com as ideias de projeto em destaque. |
+| **Ideias** | O registro: título e ideia, nada mais. Você organiza aqui o que quer levar para seus projetos. |
+| **Sessões** | Cada sessão encerrada vira um resumo em markdown com as ideias registradas nela. |
 
-## O gesto principal
+## Como uma ideia entra
 
-Selecione qualquer trecho no leitor. Aparecem dois botões:
+De duas formas, as duas leves:
 
-- **Registrar ideia deste trecho** — leva o texto para o formulário, já com o
-  arquivo e a linha preenchidos.
-- **Copiar** — para levar o trecho para a conversa com o agente e perguntar sobre ele.
+1. **Você pede ao tutor.** Durante o estudo, diga "anota essa ideia". O tutor
+   enxuga, compacta e põe no registro.
+2. **Pelo leitor.** Selecione um trecho e use **Registrar ideia deste trecho**. A
+   origem (arquivo e linha) é anotada sozinha — você não precisa digitar nada além
+   do título.
 
-É assim que o texto do código vira uma técnica no seu registro. Depois, na lista
-de ideias, a origem é clicável: volta e abre o arquivo na linha exata.
+O formulário tem só título e texto. Área, etiqueta, importância e "vale para
+projetos" saíram: eram opções que atrapalhavam na hora de capturar. Se alguma
+ideia antiga tiver esses campos, eles continuam aparecendo nela.
+
+O **Índice**, na visão geral, lista os títulos: clicar leva direto ao cartão.
 
 ## O que cada arquivo é
 
