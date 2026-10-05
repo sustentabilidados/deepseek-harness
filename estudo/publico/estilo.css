@@ -28,12 +28,42 @@ body {
 
 body {
   margin: 0;
-  background: var(--fundo);
+  background:
+    radial-gradient(1100px 700px at 85% -12%, rgba(91, 141, 255, 0.12), transparent 60%),
+    radial-gradient(800px 600px at -10% 110%, rgba(66, 211, 146, 0.06), transparent 55%),
+    var(--fundo);
   color: var(--texto);
   font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Barras de rolagem discretas. */
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--borda-forte);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4d5a72;
+  background-clip: padding-box;
+  border: 3px solid transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 h2 {
@@ -194,6 +224,7 @@ h2 {
 
 #visao-estudar.ativa {
   grid-template-columns: 290px 1fr;
+  transition: grid-template-columns 0.28s ease;
 }
 
 .explorador {
@@ -235,37 +266,75 @@ h2 {
 }
 
 .migalhas {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   padding: 7px 12px;
   font-size: 11px;
   color: var(--texto-fraco);
   border-bottom: 1px solid var(--borda);
   font-family: var(--mono);
   overflow: hidden;
-  text-overflow: ellipsis;
+  min-height: 29px;
+  flex: none;
+}
+
+.migalha {
+  background: none;
+  border: none;
+  color: var(--texto-fraco);
+  font: inherit;
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  cursor: pointer;
   white-space: nowrap;
-  min-height: 27px;
+}
+
+.migalha:hover {
+  color: var(--acento);
+  background: var(--acento-fundo);
+}
+
+.migalha-sep {
+  color: var(--borda-forte);
+  flex: none;
+}
+
+.migalha-rotulo {
+  color: var(--texto-fraco);
+  white-space: nowrap;
 }
 
 .arvore {
   flex: 1;
   overflow-y: auto;
-  padding: 6px;
+  padding: 8px;
+}
+
+.arvore-vazio {
+  color: var(--texto-fraco);
+  font-size: 12px;
+  padding: 10px;
+  text-align: center;
 }
 
 .item-arvore {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   width: 100%;
-  padding: 4px 8px;
+  padding: 6px 9px 6px 14px;
   border: none;
-  border-radius: 6px;
+  border-radius: 7px;
   background: none;
   color: var(--texto-medio);
   font: inherit;
   font-size: 12.5px;
   text-align: left;
   cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 
 .item-arvore:hover {
@@ -273,17 +342,68 @@ h2 {
   color: var(--texto);
 }
 
+/* Barra de acento do arquivo aberto. */
 .item-arvore.atual {
-  background: var(--acento-fundo);
+  background: linear-gradient(90deg, var(--acento-fundo), transparent 85%);
   color: var(--texto);
 }
 
+.item-arvore.atual::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--acento);
+}
+
 .item-arvore .marca {
-  width: 13px;
   flex: none;
-  text-align: center;
-  font-size: 10px;
-  opacity: 0.75;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.item-arvore .marca.chevron {
+  width: 12px;
+  color: var(--texto-fraco);
+  font-size: 11px;
+  transition: transform 0.14s ease;
+}
+
+.item-arvore.pasta:hover .marca.chevron {
+  color: var(--acento);
+  transform: translateX(1px);
+}
+
+/* Pontinho colorido por tipo de arquivo. */
+.item-arvore .marca.ponto-classe {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6b7280;
+}
+
+.item-arvore .marca.ponto-classe.regras {
+  background: var(--atencao);
+}
+
+.item-arvore .marca.ponto-classe.documentacao {
+  background: var(--acento);
+}
+
+.item-arvore .marca.ponto-classe.codigo {
+  background: #7dd3fc;
+}
+
+.item-arvore .marca.ponto-classe.teste {
+  background: var(--bom);
+}
+
+.item-arvore .marca.ponto-classe.configuracao {
+  background: #9aa4b8;
 }
 
 .item-arvore .nome {
@@ -294,18 +414,58 @@ h2 {
 
 .item-arvore .classe {
   margin-left: auto;
-  font-size: 9px;
+  font-size: 8.5px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--texto-fraco);
-  border: 1px solid var(--borda);
-  border-radius: 4px;
-  padding: 0 4px;
+  opacity: 0.75;
   flex: none;
+  transition: opacity 0.14s ease;
+}
+
+.item-arvore:hover .classe,
+.item-arvore.atual .classe {
+  opacity: 1;
 }
 
 .item-arvore.pasta .nome {
   color: var(--texto);
+}
+
+/* ------------------------------------------------------------- foco */
+
+/* O que fica de fora embaça e perde a cor; o leitor toma a tela. */
+.menu,
+.topo,
+.explorador {
+  transition: filter 0.28s ease, opacity 0.28s ease, border-color 0.28s ease;
+}
+
+body.foco .topo,
+body.foco .menu {
+  filter: blur(7px) saturate(0.6);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+body.foco #visao-estudar.ativa {
+  grid-template-columns: 0 1fr;
+}
+
+body.foco .explorador {
+  overflow: hidden;
+  border-right-color: transparent;
+  opacity: 0;
+}
+
+body.foco .leitor-corpo {
+  padding-left: 34px;
+  padding-right: 34px;
+}
+
+body.foco .leitor-cabecalho {
+  border-bottom-color: transparent;
+  background: transparent;
 }
 
 /* --------------------------------------------------------- leitor */

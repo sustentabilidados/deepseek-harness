@@ -116,24 +116,50 @@ async function abrirPasta(caminho) {
   }
 }
 
-function renderArvore(dados) {
-  $('migalhas').textContent = `/${dados.caminho}`
+/** Desenha o caminho atual como migalhas clicaveis. */
+function renderMigalhas(caminho) {
+  const el = $('migalhas')
+  el.innerHTML = ''
 
+  const raiz = document.createElement('button')
+  raiz.className = 'migalha'
+  raiz.textContent = 'raiz'
+  raiz.title = 'voltar à raiz'
+  raiz.addEventListener('click', () => {
+    $('busca-arquivo').value = ''
+    abrirPasta('')
+  })
+  el.append(raiz)
+
+  let acumulado = ''
+  for (const parte of caminho.split('/').filter(Boolean)) {
+    acumulado = acumulado ? `${acumulado}/${parte}` : parte
+    const separador = document.createElement('span')
+    separador.className = 'migalha-sep'
+    separador.textContent = '/'
+    el.append(separador)
+
+    const botao = document.createElement('button')
+    botao.className = 'migalha'
+    botao.textContent = parte
+    const alvo = acumulado
+    botao.addEventListener('click', () => {
+      $('busca-arquivo').value = ''
+      abrirPasta(alvo)
+    })
+    el.append(botao)
+  }
+}
+
+function renderArvore(dados) {
+  renderMigalhas(dados.caminho)
   const arvore = $('arvore')
   arvore.innerHTML = ''
-
-  if (dados.pai !== undefined && dados.caminho) {
-    const voltar = document.createElement('button')
-    voltar.className = 'item-arvore pasta'
-    voltar.innerHTML = '<span class="marca">←</span><span class="nome">voltar</span>'
-    voltar.addEventListener('click', () => abrirPasta(dados.pai))
-    arvore.append(voltar)
-  }
 
   for (const pasta of dados.pastas) {
     const botao = document.createElement('button')
     botao.className = 'item-arvore pasta'
-    botao.innerHTML = `<span class="marca">▸</span><span class="nome">${esc(pasta.nome)}</span>`
+    botao.innerHTML = '<span class="marca chevron">▸</span><span class="nome">' + esc(pasta.nome) + '</span>'
     botao.addEventListener('click', () => abrirPasta(pasta.caminho))
     arvore.append(botao)
   }
@@ -142,9 +168,16 @@ function renderArvore(dados) {
     const botao = document.createElement('button')
     botao.className = 'item-arvore'
     if (arquivoAberto?.caminho === arquivo.caminho) botao.classList.add('atual')
-    botao.innerHTML = `<span class="marca">·</span><span class="nome">${esc(arquivo.nome)}</span><span class="classe">${esc(arquivo.classe)}</span>`
+    botao.innerHTML =
+      `<span class="marca ponto-classe ${esc(arquivo.classe)}"></span>` +
+      `<span class="nome">${esc(arquivo.nome)}</span>` +
+      `<span class="classe">${esc(arquivo.classe)}</span>`
     botao.addEventListener('click', () => abrirArquivo(arquivo.caminho))
     arvore.append(botao)
+  }
+
+  if (dados.pastas.length === 0 && dados.arquivos.length === 0) {
+    arvore.innerHTML = '<div class="arvore-vazio">pasta vazia</div>'
   }
 }
 
@@ -158,7 +191,13 @@ $('busca-arquivo').addEventListener('input', async (evento) => {
     const { resultados } = await api(`/api/procurar?q=${encodeURIComponent(termo)}`)
     const arvore = $('arvore')
     arvore.innerHTML = ''
-    $('migalhas').textContent = `${resultados.length} arquivos com "${termo}"`
+
+    const migalhas = $('migalhas')
+    migalhas.innerHTML = ''
+    const rotulo = document.createElement('span')
+    rotulo.className = 'migalha-rotulo'
+    rotulo.textContent = `${resultados.length} arquivos com “${termo}”`
+    migalhas.append(rotulo)
 
     if (resultados.length === 0) {
       arvore.innerHTML = '<div class="vazio">Nada encontrado.</div>'
@@ -167,7 +206,9 @@ $('busca-arquivo').addEventListener('input', async (evento) => {
     for (const item of resultados) {
       const botao = document.createElement('button')
       botao.className = 'item-arvore'
-      botao.innerHTML = `<span class="marca">·</span><span class="nome" title="${esc(item.caminho)}">${esc(item.caminho)}</span>`
+      botao.innerHTML =
+        `<span class="marca ponto-classe ${esc(item.classe)}"></span>` +
+        `<span class="nome" title="${esc(item.caminho)}">${esc(item.caminho)}</span>`
       botao.addEventListener('click', () => abrirArquivo(item.caminho))
       arvore.append(botao)
     }
@@ -250,6 +291,21 @@ function renderLeitor(linhaDestacada = 0) {
 $('btn-renderizado').addEventListener('click', () => {
   modoFormatado = !modoFormatado
   renderLeitor()
+})
+
+// ------------------------------------------------------------ foco
+
+/** Entra e sai do modo foco: o resto da tela embaça, o leitor toma a cena. */
+function alternarFoco() {
+  const ativo = document.body.classList.toggle('foco')
+  $('btn-foco').textContent = ativo ? 'sair do foco' : 'focar'
+  $('btn-foco').title = ativo ? 'Esc para sair' : 'distrações embaçadas'
+}
+
+$('btn-foco').addEventListener('click', alternarFoco)
+
+document.addEventListener('keydown', (evento) => {
+  if (evento.key === 'Escape' && document.body.classList.contains('foco')) alternarFoco()
 })
 
 // ---------------------------------------------------- selecao
